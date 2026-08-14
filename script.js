@@ -2,21 +2,71 @@
  * SANSINOZ SWIMMING CLUB - Main Application Orchestrator (script.js)
  */
 
+// 1. DEFINISIKAN STATE & DATA DULU AGAR TIDAK REFERENCE ERROR
+window.AppState = window.AppState || {
+  currentUser: null,
+  activeTab: 'dashboard',
+  athletes: [],
+  records: [],
+  userAccounts: [
+    { id: '1', name: 'Head Coach', role: 'Head Coach', accessKey: 'HEADCOACH2026', email: 'coach@sansinoz.com', password: 'coach2026', avatarUrl: '' },
+    { id: '2', name: 'Admin Club', role: 'Administrator', accessKey: 'ADMINSNZ', email: 'admin@sansinoz.com', password: 'admin2026', avatarUrl: '' }
+  ]
+};
+
+let loginMode = 'key';
+
+// 2. HELPER & DUMMY RENDER AGAR TIDAK CRASH
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+}
+
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `px-4 py-2 rounded-xl text-xs font-bold text-white shadow-lg transition-all ${type === 'error' ? 'bg-rose-600' : 'bg-cyan-600'}`;
+  toast.innerText = msg;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function destroyCharts() {
+  if (typeof Chart !== 'undefined') {
+    Object.keys(Chart.instances || {}).forEach(id => Chart.instances[id].destroy());
+  }
+}
+
+function initAnalyticsCharts() {}
+
+// 3. FUNGSI RENDER TABS
+function renderDashboardTab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Selamat Datang di Dashboard SANSINOZ.</div>`; }
+function renderAthletesTab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Halaman Manajemen Atlet</div>`; }
+function renderClassesTab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Halaman Kelas & Room</div>`; }
+function renderRecordsTab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Halaman Catatan Waktu</div>`; }
+function renderAnalyticsTab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Halaman Analisis Grafik</div>`; }
+function renderLeaderboardTab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Halaman Limit Nasional</div>`; }
+function renderMedalsTab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Halaman Rekap Medali</div>`; }
+function renderEvaluationsTab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Halaman Evaluasi Atlet</div>`; }
+function renderBMITab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Halaman BMI & Gizi AI</div>`; }
+function renderUsersTab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Halaman Akun & Akses</div>`; }
+function renderReportsTab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Halaman Laporan PDF</div>`; }
+function renderAlFatihTab() { return `<div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">Halaman Ekskul Al-Fatih</div>`; }
+
+// 4. MAIN RENDER APP
 function renderApp() {
   const root = document.getElementById('app');
   if (!root) return;
 
-  // Clean up any Chart.js instances before DOM wipe
   destroyCharts();
 
-  // If not logged in, render the Login Portal
   if (!AppState.currentUser) {
     root.innerHTML = renderLoginPortal();
-    lucide.createIcons();
+    if (window.lucide) lucide.createIcons();
     return;
   }
 
-  // Render Full Application Frame (Header, Sidebar, Main Content, Modals, Toasts)
   root.innerHTML = `
     <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
       
@@ -67,12 +117,11 @@ function renderApp() {
         </div>
       </header>
 
-      <!-- Main Layout Body (Sidebar + Content Container) -->
+      <!-- Main Layout Body -->
       <div class="flex-1 flex flex-col md:flex-row max-w-[1600px] w-full mx-auto p-4 sm:p-6 gap-6">
         
         <!-- Sidebar Navigation -->
         <aside class="w-full md:w-64 shrink-0 space-y-4">
-          
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl space-y-1">
             <div class="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800/80 mb-1">
               Menu Utama Club
@@ -104,21 +153,19 @@ function renderApp() {
           <div class="bg-gradient-to-br from-blue-950/40 via-slate-900 to-slate-900 border border-cyan-500/20 rounded-2xl p-4 shadow-lg space-y-2 hidden md:block">
             <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Status Atlet Terdaftar</span>
             <div class="flex items-baseline space-x-2">
-              <span class="text-2xl font-black text-white font-mono">${AppState.athletes.length}</span>
+              <span class="text-2xl font-black text-white font-mono">${(AppState.athletes || []).length}</span>
               <span class="text-xs text-slate-400">Perenang Aktif</span>
             </div>
             <div class="text-[11px] text-slate-400">
-              Total Catatan: <strong class="text-cyan-300 font-mono">${AppState.records.length}</strong> time trials
+              Total Catatan: <strong class="text-cyan-300 font-mono">${(AppState.records || []).length}</strong> time trials
             </div>
           </div>
-
         </aside>
 
         <!-- Main Content Area -->
         <main class="flex-1 min-w-0">
           ${renderCurrentTab()}
         </main>
-
       </div>
 
       <!-- Footer -->
@@ -126,17 +173,13 @@ function renderApp() {
         <p>&copy; ${new Date().getFullYear()} SANSINOZ SWIMMING CLUB &bull; Pusat Pembinaan Prestasi Renang & Kualifikasi Limit Nasional</p>
       </footer>
 
-      <!-- Modals and Toast Containers -->
       <div id="modal-container"></div>
       <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2"></div>
-
     </div>
   `;
 
-  // Initialize Lucide vector icons
-  lucide.createIcons();
+  if (window.lucide) lucide.createIcons();
 
-  // If Analytics tab is active, trigger chart rendering
   if (AppState.activeTab === 'analytics') {
     initAnalyticsCharts();
   }
@@ -161,32 +204,19 @@ function renderNavButton(tabKey, iconName, label) {
 
 function renderCurrentTab() {
   switch (AppState.activeTab) {
-    case 'dashboard':
-      return renderDashboardTab();
-    case 'athletes':
-      return renderAthletesTab();
-    case 'classes':
-      return renderClassesTab();
-    case 'records':
-      return renderRecordsTab();
-    case 'analytics':
-      return renderAnalyticsTab();
-    case 'leaderboard':
-      return renderLeaderboardTab();
-    case 'medals':
-      return renderMedalsTab();
-    case 'evaluations':
-      return renderEvaluationsTab();
-    case 'bmi':
-      return renderBMITab();
-    case 'users':
-      return renderUsersTab();
-    case 'reports':
-      return renderReportsTab();
-    case 'alfatih':
-      return renderAlFatihTab();
-    default:
-      return renderDashboardTab();
+    case 'dashboard': return renderDashboardTab();
+    case 'athletes': return renderAthletesTab();
+    case 'classes': return renderClassesTab();
+    case 'records': return renderRecordsTab();
+    case 'analytics': return renderAnalyticsTab();
+    case 'leaderboard': return renderLeaderboardTab();
+    case 'medals': return renderMedalsTab();
+    case 'evaluations': return renderEvaluationsTab();
+    case 'bmi': return renderBMITab();
+    case 'users': return renderUsersTab();
+    case 'reports': return renderReportsTab();
+    case 'alfatih': return renderAlFatihTab();
+    default: return renderDashboardTab();
   }
 }
 
@@ -202,29 +232,22 @@ function handleLogout() {
   renderApp();
 }
 
-// ----------------------------------------------------
-// LOGIN PORTAL VIEW
-// ----------------------------------------------------
+// 5. LOGIN PORTAL
 function renderLoginPortal() {
   return `
     <div class="min-h-screen bg-slate-950 flex items-center justify-center p-4 selection:bg-cyan-500 selection:text-slate-950 font-sans">
-      
-      <!-- Background Ambient Glow -->
       <div class="fixed inset-0 overflow-hidden pointer-events-none">
         <div class="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl"></div>
         <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
       </div>
 
       <div class="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-white text-center">
-        
-        <!-- Logo & Branding -->
         <div class="space-y-3">
           <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-teal-400 p-0.5 mx-auto shadow-cyan-500/30 shadow-xl">
             <div class="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-cyan-400">
               <i data-lucide="waves" class="w-8 h-8"></i>
             </div>
           </div>
-
           <div>
             <h1 class="text-2xl font-black tracking-wider uppercase italic">
               SANSINOZ <span class="text-cyan-400">SWIMMING CLUB</span>
@@ -235,7 +258,6 @@ function renderLoginPortal() {
           </div>
         </div>
 
-        <!-- Login Tabs (Kunci Akses vs Email) -->
         <div class="flex rounded-xl bg-slate-950 p-1 border border-slate-800 text-xs font-bold">
           <button
             onclick="setLoginMode('key')"
@@ -253,7 +275,6 @@ function renderLoginPortal() {
           </button>
         </div>
 
-        <!-- Form Handling -->
         <form onsubmit="handleLoginSubmit(event)" class="space-y-4 text-left text-xs">
           ${loginMode === 'key' ? `
             <div>
@@ -282,7 +303,6 @@ function renderLoginPortal() {
                 class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none focus:border-cyan-400 text-xs"
               />
             </div>
-
             <div>
               <label class="block font-bold text-slate-300 mb-1.5">Password</label>
               <input
@@ -304,34 +324,28 @@ function renderLoginPortal() {
           </button>
         </form>
 
-        <!-- Quick Demo Profiles for instant testing -->
         <div class="pt-4 border-t border-slate-800 space-y-2 text-left">
           <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block text-center">
             Pilih Akun Demo Instan:
           </span>
-          <div class="grid grid-cols-3 gap-2">
-            ${AppState.userAccounts.map(u => `
+          <div class="grid grid-cols-2 gap-2">
+            ${(AppState.userAccounts || []).map(u => `
               <button
                 type="button"
                 onclick="quickLogin('${u.id}')"
                 class="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-cyan-500/50 text-left transition-all cursor-pointer"
               >
-                <div class="text-[11px] font-bold text-white truncate">${escapeHtml(u.name.split(' ')[0])}</div>
-                <div class="text-[9px] text-cyan-400 truncate">${escapeHtml(u.role.split(' ')[0])}</div>
+                <div class="text-[11px] font-bold text-white truncate">${escapeHtml(u.name)}</div>
+                <div class="text-[9px] text-cyan-400 truncate">${escapeHtml(u.role)}</div>
               </button>
             `).join('')}
           </div>
         </div>
-
       </div>
-
       <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2"></div>
-
     </div>
   `;
 }
-
-let loginMode = 'key';
 
 function setLoginMode(mode) {
   loginMode = mode;
@@ -343,23 +357,21 @@ function handleLoginSubmit(e) {
 
   if (loginMode === 'key') {
     const key = document.getElementById('login-access-key')?.value.trim().toUpperCase();
-    const user = AppState.userAccounts.find(u => u.accessKey.toUpperCase() === key);
+    const user = (AppState.userAccounts || []).find(u => u.accessKey.toUpperCase() === key);
     if (user) {
       AppState.currentUser = user;
       localStorage.setItem('sansinoz_session_user', JSON.stringify(user));
-      showToast(`Selamat datang kembali, ${user.name}!`);
       renderApp();
     } else {
-      showToast('Kunci akses tidak valid! Gunakan demo button di bawah.', 'error');
+      showToast('Kunci akses tidak valid!', 'error');
     }
   } else {
     const email = document.getElementById('login-email')?.value.trim().toLowerCase();
     const pass = document.getElementById('login-password')?.value;
-    const user = AppState.userAccounts.find(u => u.email.toLowerCase() === email && u.password === pass);
+    const user = (AppState.userAccounts || []).find(u => u.email.toLowerCase() === email && u.password === pass);
     if (user) {
       AppState.currentUser = user;
       localStorage.setItem('sansinoz_session_user', JSON.stringify(user));
-      showToast(`Selamat datang kembali, ${user.name}!`);
       renderApp();
     } else {
       showToast('Email atau password salah!', 'error');
@@ -368,18 +380,16 @@ function handleLoginSubmit(e) {
 }
 
 function quickLogin(userId) {
-  const user = AppState.userAccounts.find(u => u.id === userId);
+  const user = (AppState.userAccounts || []).find(u => u.id === userId);
   if (user) {
     AppState.currentUser = user;
     localStorage.setItem('sansinoz_session_user', JSON.stringify(user));
-    showToast(`Masuk sebagai ${user.name} (${user.role})`);
     renderApp();
   }
 }
 
-// Global initialization on DOMContentLoaded
+// 6. INISIALISASI
 document.addEventListener('DOMContentLoaded', () => {
-  // Check if session was saved
   const savedUser = localStorage.getItem('sansinoz_session_user');
   if (savedUser) {
     try {
@@ -388,6 +398,5 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn('Session error:', e);
     }
   }
-
   renderApp();
 });
